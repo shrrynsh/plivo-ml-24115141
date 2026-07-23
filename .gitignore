@@ -5,3 +5,4 @@ ckpt_*.pt
 runs/
 exp/
 .ipynb_checkpoints/
+toks/
