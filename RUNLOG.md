@@ -41,7 +41,8 @@ change at a time, reverting anything that doesn't help on dev.
 | R2c | same, lr 3e-3 | 2.1298 | −0.007 | too hot @ batch 8 |
 | R3a | batch 8 → 16 (lr 2e-3) | 1.8422 | −0.221 | keep |
 | R3b | batch 16 → 32 (lr 2e-3) | 1.7355 | −0.328 | keep |
-| R3c | batch 48 + lr 3e-3 (the LR that lost at batch 8) | 1.6959 | −0.040 | champion |
+| R3c | batch 48 + lr 3e-3 (the LR that lost at batch 8) | 1.6959 | −0.040 | keep |
+| R4  | LLaMA-era arch: tie + vocab 2048 + L5 + RoPE/RMSNorm/SwiGLU/bias-free | **1.6722** | −0.024 | **final** |
 
 ### R0 — baseline
 - **Hypothesis:** establish the starting number before changing anything.
@@ -109,3 +110,27 @@ change at a time, reverting anything that doesn't help on dev.
   This is the champion so far (BPE-1024, d160/L4, block 128): dev bpb 1.6959, 1,585,600
   params. Next I want to spend the parameter budget better — the vocab was fixed back
   under the bad optimizer, and the block is still the plain starter block.
+
+### R4 — architecture: the LLaMA-era recipe
+- **Hypothesis:** with the tokenizer, optimizer, batch and LR settled, the remaining
+  lever is the model itself. Two ideas: (1) the vocab was fixed at 1024 back under the
+  bad optimizer — a larger vocab (2048, ~3.36 vs 2.81 bytes/token) should now pay off,
+  and weight tying frees the vocab·d params to afford it plus a 5th layer; (2) the
+  modern transformer block (RoPE, RMSNorm, SwiGLU, bias-free, scaled residual init)
+  tends to train faster per step, which matters most under a hard step cap. With the
+  time left I adopted these together as one "modern architecture" step rather than
+  isolating each, and validated the whole against the champion.
+- **What changed (vs champion):** BPE 1024 → 2048, weight tying on, 4 → 5 layers,
+  learned-pos → RoPE, LayerNorm → RMSNorm, GELU → SwiGLU (ratio 2.667 for param
+  parity), biases removed, residual-scaled init. block 128, batch 48, lr 3e-3.
+  1,863,840 params — still under the 2M cap.
+- **Result:** dev **bpb 1.6959 → 1.6722** (−0.024). Best-by-dev checkpoint kept
+  (best was the step-2000 checkpoint). dev tokens 54.9k → 46.9k with the bigger vocab.
+- **Conclusion:** keep — the LLaMA-era architecture is the final config. The win is
+  modest next to the tokenizer/optimizer/batch levers, which is expected: those fixed
+  gross inefficiencies, whereas the architecture is a second-order refinement that only
+  pays once the training is already healthy (large batch, tuned LR). The larger vocab
+  contributes most of this delta by shortening sequences; the block changes and the 5th
+  layer, affordable only because tying freed the budget, add the rest without breaking
+  the 2000-step convergence. I did not isolate each sub-change (RoPE vs RMSNorm vs
+  SwiGLU) — with more time that is the next step, along with a longer 256-token context.
