@@ -1,0 +1,7 @@
+data/*.txt
+__pycache__/
+*.pyc
+ckpt_*.pt
+runs/
+exp/
+.ipynb_checkpoints/
