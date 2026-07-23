@@ -6,3 +6,6 @@ runs/
 exp/
 .ipynb_checkpoints/
 toks/
+runs_*.log
+exp/
+*.output
