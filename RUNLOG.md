@@ -41,6 +41,7 @@ change at a time, reverting anything that doesn't help on dev.
 | R2c | same, lr 3e-3 | 2.1298 | −0.007 | too hot @ batch 8 |
 | R3a | batch 8 → 16 (lr 2e-3) | 1.8422 | −0.221 | keep |
 | R3b | batch 16 → 32 (lr 2e-3) | 1.7355 | −0.328 | keep |
+| R3c | batch 48 + lr 3e-3 (the LR that lost at batch 8) | 1.6959 | −0.040 | champion |
 
 ### R0 — baseline
 - **Hypothesis:** establish the starting number before changing anything.
@@ -94,5 +95,17 @@ change at a time, reverting anything that doesn't help on dev.
   batch 32 and 48. Everything else = R2 (AdamW cosine, BPE-1024, baseline arch).
 - **Result:** at lr 2e-3, batch 16 → 1.8422, batch 32 → 1.7355 (train loss fell 3.86
   → 2.93, i.e. ~3 epochs of coverage vs 0.8). batch 48 and the 3e-3 probes: below.
-- **Conclusion (batch):** batch size is the biggest single win after the tokenizer —
-  keep pushing it. (batch×LR conclusion appended once b48 runs finish.)
+- **Conclusion (batch):** batch size is the biggest single win after the tokenizer.
+  Pushed to batch 48 and, per R2's diagnosis, retested the 3e-3 that lost at batch 8.
+
+### R3c — batch 48 + lr 3e-3 (revisiting the LR that failed)
+- **Hypothesis:** 3e-3 lost at batch 8 because the step was too large for the gradient
+  noise. Batch 48 lowers that noise, so 3e-3 should now be safe — and, by the linear
+  scaling intuition, a bigger batch should prefer the higher LR.
+- **What changed:** batch 32 → 48, lr 2e-3 → 3e-3. Everything else as R3.
+- **Result:** dev **bpb 1.7355 → 1.6959** (−0.040 vs batch 32). Same lr (3e-3) that was
+  the *worst* setting at batch 8 (2.1298) is now the *best* at batch 48.
+- **Conclusion:** confirmed — optimal LR is a function of batch size, not a constant.
+  This is the champion so far (BPE-1024, d160/L4, block 128): dev bpb 1.6959, 1,585,600
+  params. Next I want to spend the parameter budget better — the vocab was fixed back
+  under the bad optimizer, and the block is still the plain starter block.
