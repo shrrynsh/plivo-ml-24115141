@@ -24,7 +24,9 @@ Dev bpb **1.6722** (baseline 2.3718, −29.5%), exactly 2000 steps, **1,863,840 
 | schedule | warmup 100 → cosine to 1e-4, peak lr 3e-3 |
 | batch / steps | 48 / 2000 |
 
-Training loss curve: [loss_curve.png](loss_curve.png).
+Training loss (final run, raw + 25-step moving average):
+
+![training loss curve](loss_curve.png)
 
 ## Reproduce
 ```

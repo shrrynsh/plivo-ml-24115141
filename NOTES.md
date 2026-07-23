@@ -6,7 +6,7 @@
 4. Batch size is third: steps are capped but tokens/step are not, so batch 48 turns ~0.8 epochs into ~3–4 and cuts gradient variance for free.
 5. Peak LR and batch size are coupled — 3e-3 was the *worst* setting at batch 8 and the *best* at batch 48 — so they must be tuned together, not independently.
 6. Weight tying pays for the upgrades: it frees vocab·d parameters, which is what lets vocab 2048 coexist with a 5th layer and the modern block under the cap.
-7. The LLaMA-era block (RoPE/RMSNorm/SwiGLU/bias-free) is a second-order refinement worth −0.024 bpb — it only helps because the batch is now large enough to train it in 2000 steps.
-8. Everything that only added capacity without speeding convergence was avoided — under a hard step cap the game is convergence-per-step, not model size.
+7. The LLaMA-era block (RoPE/RMSNorm/SwiGLU/bias-free) is only worth about −0.024 bpb here; it helps mainly because the batch is now large enough to train it in 2000 steps.
+8. I avoided changes that just add parameters without training faster, since with a fixed 2000-step budget what matters is how fast the model converges, not how big it is.
 9. Progression: 2.3718 (baseline) → 2.1368 (BPE) → 2.0630 (AdamW/cosine) → 1.7355 (batch 32) → 1.6959 (batch 48, lr 3e-3) → 1.6722 (LLaMA-lite), a 29.5% reduction over baseline.
 10. Reproducible: seed 1337, seeded batch sampler, committed tokenizer.json and checkpoint, lossless round-trip verified by the scorer.
