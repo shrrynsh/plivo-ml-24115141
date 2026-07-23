@@ -39,6 +39,8 @@ change at a time, reverting anything that doesn't help on dev.
 | R2a | optimizer → AdamW+warmup+cosine+clip+wd, lr 1e-3 | 2.0830 | −0.054 | — |
 | R2b | same, lr 2e-3 | 2.0630 | −0.074 | keep |
 | R2c | same, lr 3e-3 | 2.1298 | −0.007 | too hot @ batch 8 |
+| R3a | batch 8 → 16 (lr 2e-3) | 1.8422 | −0.221 | keep |
+| R3b | batch 16 → 32 (lr 2e-3) | 1.7355 | −0.328 | keep |
 
 ### R0 — baseline
 - **Hypothesis:** establish the starting number before changing anything.
@@ -81,3 +83,16 @@ change at a time, reverting anything that doesn't help on dev.
   settle. That points somewhere specific: a **bigger batch** cuts gradient variance,
   which should make that same 3e-3 safe — batch size and LR are coupled, not
   independent. Test batch size next, then revisit 3e-3 at large batch.
+
+### R3 — batch size, then the batch × LR interaction
+- **Hypothesis:** the model is undertrained (R2 batch 8 is ~0.8 epochs). Steps are
+  capped but tokens/step are not, so a bigger batch raises corpus coverage and cuts
+  gradient variance for free (only wall-clock cost, which isn't graded). And per R2's
+  diagnosis, a larger batch should let the 3e-3 that overshot at batch 8 converge —
+  so after the batch sweep I retest 3e-3 at large batch.
+- **What changed:** batch 8 → {16, 32, 48} at lr 2e-3; then a 3e-3 vs 2e-3 probe at
+  batch 32 and 48. Everything else = R2 (AdamW cosine, BPE-1024, baseline arch).
+- **Result:** at lr 2e-3, batch 16 → 1.8422, batch 32 → 1.7355 (train loss fell 3.86
+  → 2.93, i.e. ~3 epochs of coverage vs 0.8). batch 48 and the 3e-3 probes: below.
+- **Conclusion (batch):** batch size is the biggest single win after the tokenizer —
+  keep pushing it. (batch×LR conclusion appended once b48 runs finish.)
