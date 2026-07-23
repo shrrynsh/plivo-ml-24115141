@@ -35,6 +35,7 @@ change at a time, reverting anything that doesn't help on dev.
 | run | change | dev bpb | Δ | verdict |
 |-----|--------|--------:|---:|---------|
 | R0  | baseline (byte, Adam const 3e-4, batch 8) | 2.3718 | — | reference |
+| R1  | tokenizer → byte-level BPE vocab 1024 (else = R0) | 2.1368 | −0.235 | keep |
 
 ### R0 — baseline
 - **Hypothesis:** establish the starting number before changing anything.
@@ -44,3 +45,19 @@ change at a time, reverting anything that doesn't help on dev.
   — confirms undertraining, so the optimizer is going to matter once the tokenizer
   stops wasting the window.
 - **Conclusion:** reference point. Attack the tokenizer next.
+
+### R1 — byte-level BPE tokenizer
+- **Hypothesis:** a BPE tokenizer trained on the corpus should pack multiple bytes
+  per token (especially Devanagari consonant+matra runs), so the same 128-token
+  window holds far more real text and bpb's byte denominator grows. Biggest
+  suspected lever.
+- **What changed (only this):** raw-byte → byte-level BPE, vocab 1024, with a
+  Devanagari-aware pre-tokenizer (U+0900–U+097F kept in the word class, optional
+  leading space) so Hindi syllables actually merge. 256 base byte tokens kept for a
+  lossless byte fallback. Model + optimizer identical to R0.
+- **Result:** dev **bpb 2.3718 → 2.1368** (−0.235). Corpus packs 2.81 bytes/token;
+  dev drops from 159k tokens to 55k. 1,585,600 params.
+- **Conclusion:** keep — biggest single drop, as expected. But train loss is still
+  ~4.06 and falling steeply at step 2000: the 1024-vocab has much higher per-token
+  entropy, and the constant-LR Adam badly undertrains it. The optimizer is clearly
+  leaving a lot on the table — that's next.
