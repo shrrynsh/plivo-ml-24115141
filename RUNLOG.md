@@ -126,11 +126,10 @@ change at a time, reverting anything that doesn't help on dev.
   1,863,840 params — still under the 2M cap.
 - **Result:** dev **bpb 1.6959 → 1.6722** (−0.024). Best-by-dev checkpoint kept
   (best was the step-2000 checkpoint). dev tokens 54.9k → 46.9k with the bigger vocab.
-- **Conclusion:** keep — the LLaMA-era architecture is the final config. The win is
-  modest next to the tokenizer/optimizer/batch levers, which is expected: those fixed
-  gross inefficiencies, whereas the architecture is a second-order refinement that only
-  pays once the training is already healthy (large batch, tuned LR). The larger vocab
-  contributes most of this delta by shortening sequences; the block changes and the 5th
-  layer, affordable only because tying freed the budget, add the rest without breaking
-  the 2000-step convergence. I did not isolate each sub-change (RoPE vs RMSNorm vs
-  SwiGLU) — with more time that is the next step, along with a longer 256-token context.
+- **Conclusion:** keep, this is my final config. The gain is small compared to the
+  tokenizer/optimizer/batch changes, which makes sense: those fixed big inefficiencies,
+  the architecture is more of a refinement and only helps now that the batch and LR are
+  already good. I think most of the -0.024 is the bigger vocab (shorter sequences), and
+  tying is what paid for the extra vocab + 5th layer without going over 2M or hurting
+  convergence in 2000 steps. I didn't have time to separate RoPE / RMSNorm / SwiGLU one
+  by one or try a 256 context, that would be the next thing to do.
