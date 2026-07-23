@@ -36,6 +36,9 @@ change at a time, reverting anything that doesn't help on dev.
 |-----|--------|--------:|---:|---------|
 | R0  | baseline (byte, Adam const 3e-4, batch 8) | 2.3718 | — | reference |
 | R1  | tokenizer → byte-level BPE vocab 1024 (else = R0) | 2.1368 | −0.235 | keep |
+| R2a | optimizer → AdamW+warmup+cosine+clip+wd, lr 1e-3 | 2.0830 | −0.054 | — |
+| R2b | same, lr 2e-3 | 2.0630 | −0.074 | keep |
+| R2c | same, lr 3e-3 | 2.1298 | −0.007 | too hot @ batch 8 |
 
 ### R0 — baseline
 - **Hypothesis:** establish the starting number before changing anything.
@@ -61,3 +64,20 @@ change at a time, reverting anything that doesn't help on dev.
   ~4.06 and falling steeply at step 2000: the 1024-vocab has much higher per-token
   entropy, and the constant-LR Adam badly undertrains it. The optimizer is clearly
   leaving a lot on the table — that's next.
+
+### R2 — optimizer bundle + LR sweep
+- **Hypothesis:** R1 is undertrained (loss ~4.06, still dropping). Swapping to AdamW
+  with a linear warmup → cosine decay, decoupled weight decay on the matmuls, and
+  gradient clipping should let a much higher peak LR actually converge inside 2000
+  steps. Treated "the optimizer" as one lever and swept peak LR ∈ {1e-3, 2e-3, 3e-3}.
+- **What changed:** Adam const 3e-4 → AdamW(0.9, 0.95), wd 0.1 (2D weights only),
+  warmup 100, cosine to 1e-4, clip 1.0. Arch/tokenizer/batch unchanged from R1.
+- **Result:** lr 1e-3 → 2.0830, **lr 2e-3 → 2.0630 (best)**, lr 3e-3 → 2.1298.
+  dev **bpb 2.1368 → 2.0630** (−0.074) at lr 2e-3.
+- **Conclusion:** keep AdamW+cosine at lr 2e-3. Clear interior optimum. The ambitious
+  3e-3 actually *lost* (worse than even 1e-3): its loss curve sits persistently higher
+  (final train loss 4.07 vs 3.86 for 2e-3), with no divergence spike — the signature of
+  a step size too large for batch-8's gradient noise, so updates overshoot and never
+  settle. That points somewhere specific: a **bigger batch** cuts gradient variance,
+  which should make that same 3e-3 safe — batch size and LR are coupled, not
+  independent. Test batch size next, then revisit 3e-3 at large batch.
